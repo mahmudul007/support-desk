@@ -13,6 +13,110 @@ Engineered to meet enterprise reliability standards, this system provides busine
 
 ---
 
+## ⚡ Quick Start for Evaluators / Interviewers (2-Minute Setup)
+
+If you are evaluating this project, follow this streamlined setup to get the entire platform and demo data running immediately:
+
+### Option A: Standard Setup with MySQL (Recommended)
+
+```bash
+# 1. Clone & navigate into project
+git clone <repository-url>
+cd support-desk
+
+# 2. Install composer dependencies
+composer install
+
+# 3. Copy environment file (.env.example or .env.copy to .env)
+cp .env.example .env
+# (or: cp .env.copy .env)
+
+# 4. Generate encryption key & storage symlink
+php artisan key:generate
+php artisan storage:link
+
+# 5. Ensure MySQL database exists (e.g., support_desk in .env), then migrate & seed:
+php artisan migrate:fresh --seed
+
+# 6. Start the development server
+php artisan serve
+```
+
+> **⚡ Single Copy-Paste Command (if MySQL DB `support_desk` is ready):**
+> ```bash
+> composer install && cp .env.example .env && php artisan key:generate && php artisan storage:link && php artisan migrate:fresh --seed && php artisan serve
+> ```
+
+---
+
+### Option B: Zero-Config SQLite Setup (Instant 30-Second Evaluation)
+If you do not have a local MySQL service running and want to evaluate the UI, workflows, and logic immediately without configuration:
+
+```bash
+composer install
+cp .env.example .env
+php artisan key:generate
+php artisan storage:link
+
+# Switch database to local SQLite
+touch database/database.sqlite
+sed -i 's/DB_CONNECTION=mysql/DB_CONNECTION=sqlite/g' .env
+
+# Run migrations and modular seeders
+php artisan migrate:fresh --seed
+
+# Start development server
+php artisan serve
+```
+
+---
+
+### 🔑 Seeded Demo Credentials
+
+The database seeders (`php artisan migrate:fresh --seed`) automatically create demo accounts across all three RBAC roles:
+
+| Role | Email | Password | Primary Evaluation Focus |
+|---|---|---|---|
+| **Administrator** | `admin@supportdesk.test` | `password` | Enterprise KPI Dashboard, CSV Bulk Import (`/imports`), Manual Reassignments, Category & Policy Config |
+| **Support Agent 1** | `agent1@supportdesk.test` | `password` | Tier 2 Support: Ticket Claiming, Internal Notes (`is_internal`), SLA Deadline Tracking |
+| **Support Agent 2** | `agent2@supportdesk.test` | `password` | Operations Specialist: Concurrency Accept Race Testing (`409 Conflict`) |
+| **Support Agent 3** | `agent3@supportdesk.test` | `password` | Security & Infrastructure Specialist |
+| **Support Agent 4** | `agent4@supportdesk.test` | `password` | Billing & Invoicing Specialist |
+| **Customer 1** | `customer1@supportdesk.test` | `password` | Acme Corp: Create Tickets, Public Conversation, Resolve Confirmation, Private Note Redaction |
+| **Customer 2** | `customer2@supportdesk.test` | `password` | Globex Industries |
+| **Customer (SSO Issue)** | `sarah@cyberdyne.test` | `password` | Cyberdyne Systems: Resolved ticket review and re-opening |
+
+---
+
+### 🧪 Run the Test Suite (88 Tests, 317 Assertions)
+```bash
+vendor/bin/phpunit
+```
+All 88 unit and feature tests run against an isolated in-memory SQLite runner with zero database setup required.
+
+---
+
+### 🔍 Interviewer Feature Tour & Verification Checklist
+
+1. **Verify Role Isolation & Internal Notes**:
+   - Log in as **Agent** (`agent1@supportdesk.test` / `password`). Open any assigned ticket. Post an **Internal Note** (checkbox enabled).
+   - Log out, and log in as **Customer** (`customer1@supportdesk.test` / `password`). Open the same ticket: the internal note is strictly hidden and omitted from HTML/API output.
+2. **Verify Concurrency-Safe Claiming**:
+   - Open two browser tabs / incognito windows. Log in as `agent1@supportdesk.test` on tab 1 and `agent2@supportdesk.test` on tab 2.
+   - Navigate to an unassigned ticket (e.g. `TKT-2026-000005`). Click **"Accept Ticket"** simultaneously.
+   - One agent succeeds and claims the ticket; the other immediately receives an HTTP **`409 Conflict`** with a clean collision alert.
+3. **Verify Chunked CSV Import & Error Reporting**:
+   - Log in as **Admin** (`admin@supportdesk.test`). Navigate to `/imports`.
+   - View the pre-seeded completed import run showing 125 total rows, 118 successes, 4 duplicates skipped, and 3 validation errors.
+   - Click **"Download Error CSV"** to inspect the error log.
+4. **Verify Business-Hours SLA Engine**:
+   - Check `config/sla.php`: business hours are Sunday–Thursday 09:00–18:00 `Asia/Dhaka`.
+   - Run `php artisan tickets:escalate-sla` to trigger the automated escalation background job.
+5. **Verify Single-Pass Operational Dashboard**:
+   - Visit `/dashboard` to view single-query conditional aggregation metrics.
+
+---
+
 ## Table of Contents
 
 - [Core Architectural Highlights](#core-architectural-highlights)
@@ -20,9 +124,8 @@ Engineered to meet enterprise reliability standards, this system provides busine
 - [Role-Based Access Control (RBAC)](#role-based-access-control-rbac)
 - [Technology Stack](#technology-stack)
 - [Prerequisites & System Requirements](#prerequisites--system-requirements)
-- [Installation & Quickstart Guide](#installation--quickstart-guide)
+- [Environment Configuration (.env)](#environment-configuration-env)
 - [Background Workers & Scheduler Setup](#background-workers--scheduler-setup)
-- [Default Demo Credentials](#default-demo-credentials)
 - [Key Workflows & Implementation Details](#key-workflows--implementation-details)
   - [1. Concurrency-Safe Ticket Claiming](#1-concurrency-safe-ticket-claiming)
   - [2. Business-Hours SLA Engine](#2-business-hours-sla-engine)
@@ -108,31 +211,21 @@ The application enforces three distinct authorization tiers backed by the `UserR
 
 - **PHP**: `^8.3` with extensions: `pdo_mysql`, `mbstring`, `openssl`, `bcmath`, `curl`, `ctype`, `xml`
 - **Composer**: `^2.2`
-- **MySQL**: `^8.0`
+- **MySQL**: `^8.0` (or SQLite for quick evaluation)
 - **Web Server**: Nginx / Apache / `php artisan serve`
 
 ---
 
-## Installation & Quickstart Guide
+## Environment Configuration (.env)
 
-### 1. Clone the Repository
-```bash
-git clone https://github.com/your-org/support-desk.git
-cd support-desk
-```
+The repository provides both `.env.example` and `.env.copy` with production-ready defaults:
 
-### 2. Install PHP Dependencies
-```bash
-composer install
-```
-
-### 3. Environment Configuration
-Copy the sample environment file and configure your MySQL credentials:
 ```bash
 cp .env.example .env
+# or: cp .env.copy .env
 ```
 
-Ensure your `.env` contains your MySQL database connection:
+Key environment configuration variables:
 ```ini
 APP_NAME="Support Desk"
 APP_ENV=local
@@ -141,6 +234,7 @@ APP_DEBUG=true
 APP_TIMEZONE="Asia/Dhaka"
 APP_URL=http://localhost:8000
 
+# Primary Engine: MySQL 8.0+
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
 DB_PORT=3306
@@ -151,29 +245,6 @@ DB_PASSWORD=your_password
 QUEUE_CONNECTION=database
 FILESYSTEM_DISK=local
 ```
-
-### 4. Generate Application Encryption Key
-```bash
-php artisan key:generate
-```
-
-### 5. Run Migrations & Seed Dummy Data
-Execute database schema creation along with the comprehensive demo seeders:
-```bash
-php artisan migrate:fresh --seed
-```
-
-### 6. Create Storage Symlink
-Link the storage directory for public assets:
-```bash
-php artisan storage:link
-```
-
-### 7. Start the Local Server
-```bash
-php artisan serve
-```
-Visit `http://localhost:8000` in your web browser.
 
 ---
 
@@ -197,23 +268,6 @@ For production deployment, add the standard Laravel Cron entry to your server (`
 ```cron
 * * * * * cd /path-to-your-project && php artisan schedule:run >> /dev/null 2>&1
 ```
-
----
-
-## Default Demo Credentials
-
-Running `php artisan migrate:fresh --seed` populates the database with realistic demo accounts:
-
-| Role | Email | Password | Details |
-|---|---|---|---|
-| **Administrator** | `admin@supportdesk.test` | `password` | Full administrative control, CSV import, manual assignment |
-| **Support Agent 1** | `agent1@supportdesk.test` | `password` | Tier 2 Support (Technical Support, Infrastructure) |
-| **Support Agent 2** | `agent2@supportdesk.test` | `password` | Operations Specialist (Technical Support, Feature Requests) |
-| **Support Agent 3** | `agent3@supportdesk.test` | `password` | Security & Infrastructure Specialist |
-| **Support Agent 4** | `agent4@supportdesk.test` | `password` | Billing & Invoicing Specialist |
-| **Customer 1** | `customer1@supportdesk.test` | `password` | Acme Corp (Sample active tickets & replies) |
-| **Customer 2** | `customer2@supportdesk.test` | `password` | Globex Industries |
-| **Customer 3** | `sarah@cyberdyne.test` | `password` | Cyberdyne Systems (Okta SSO resolution thread) |
 
 ---
 

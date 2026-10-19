@@ -102,4 +102,3 @@ class TicketStatusTransitionTest extends TestCase
         $this->assertSame(TicketStatus::InProgress, $ticket->status);
     }
 }
-

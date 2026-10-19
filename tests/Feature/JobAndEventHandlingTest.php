@@ -89,4 +89,3 @@ class JobAndEventHandlingTest extends TestCase
         Notification::assertSentTo($admin, TicketEscalatedNotification::class);
     }
 }
-

@@ -72,4 +72,3 @@ class AttachmentDownloadTest extends TestCase
         $response->assertNotFound();
     }
 }
-

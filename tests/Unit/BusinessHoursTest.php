@@ -109,4 +109,3 @@ class BusinessHoursTest extends TestCase
         $this->assertSame(0, $this->businessHours->minutesUntilEndOfBusinessDay($pastEnd));
     }
 }
-

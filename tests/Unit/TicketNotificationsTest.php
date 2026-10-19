@@ -89,4 +89,3 @@ class TicketNotificationsTest extends TestCase
         $this->assertSame('ticket_escalated', $data['type']);
     }
 }
-
